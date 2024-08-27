@@ -1,3 +1,3 @@
-import './bot';
+import "./bot";
 
-console.log('RaidBot initialized.');
+console.log("RaidBot initialized.");

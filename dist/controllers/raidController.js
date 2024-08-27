@@ -10,9 +10,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.startRaid = startRaid;
+exports.cancelRaid = cancelRaid;
+exports.verifyRaid = verifyRaid;
 const telegramService_1 = require("../services/telegramService");
 const twitterService_1 = require("../services/twitterService");
 const databaseService_1 = require("../services/databaseService");
+const intervalStorage_1 = require("./intervalStorage");
 function startRaid(chatId, tweetUrl, likeGoal, commentGoal, retweetGoal) {
     return __awaiter(this, void 0, void 0, function* () {
         yield (0, telegramService_1.lockChat)(chatId);
@@ -31,22 +34,76 @@ function startRaid(chatId, tweetUrl, likeGoal, commentGoal, retweetGoal) {
         }
         const raidId = raid[0].id;
         const interval = setInterval(() => __awaiter(this, void 0, void 0, function* () {
+            var _a;
             try {
                 const metrics = yield (0, twitterService_1.fetchMetrics)(tweetUrl);
-                yield (0, databaseService_1.updateRaidMetrics)(raidId, metrics);
+                const raidCompleted = metrics.likes >= likeGoal &&
+                    metrics.comments >= commentGoal &&
+                    metrics.retweets >= retweetGoal;
+                yield (0, databaseService_1.updateRaidMetrics)(raidId, metrics, raidCompleted);
                 yield (0, telegramService_1.updateRaidMessage)(chatId, messageId, `Raid update: ${metrics.likes} likes, ${metrics.comments} comments, ${metrics.retweets} retweets`);
-                if (metrics.likes >= likeGoal && metrics.comments >= commentGoal && metrics.retweets >= retweetGoal) {
+                if (raidCompleted) {
                     clearInterval(interval);
+                    (0, intervalStorage_1.clearRaidInterval)(messageId);
                     yield (0, telegramService_1.unlockChat)(chatId);
                     yield (0, telegramService_1.updateRaidMessage)(chatId, messageId, `Raid complete! ${metrics.likes} likes, ${metrics.comments} comments, ${metrics.retweets} retweets`);
                 }
             }
             catch (error) {
-                console.error("Error updating raid metrics:", error.message);
-                clearInterval(interval);
-                yield (0, telegramService_1.unlockChat)(chatId);
-                yield (0, telegramService_1.updateRaidMessage)(chatId, messageId, `Raid failed due to error: ${error.message}`);
+                if (((_a = error.response) === null || _a === void 0 ? void 0 : _a.status) === 429) {
+                    console.error("Rate limit exceeded. Retrying after a delay...");
+                }
+                else {
+                    console.error("Error updating raid metrics:", error.message);
+                    clearInterval(interval);
+                    (0, intervalStorage_1.clearRaidInterval)(messageId);
+                    yield (0, telegramService_1.unlockChat)(chatId);
+                    yield (0, telegramService_1.updateRaidMessage)(chatId, messageId, `Raid failed due to error: ${error.message}`);
+                }
             }
-        }), 5000);
+        }), 30000);
+        (0, intervalStorage_1.setRaidInterval)(messageId, interval);
+        return messageId;
+    });
+}
+function cancelRaid(messageId) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const raid = yield (0, databaseService_1.fetchRaidByMessageId)(messageId);
+            if (!raid) {
+                console.error(`No active raid found for message ID: ${messageId}`);
+                return;
+            }
+            (0, intervalStorage_1.clearRaidInterval)(messageId);
+            yield (0, telegramService_1.unlockChat)(raid.message_id);
+            yield (0, databaseService_1.updateRaidMetrics)(raid.id, { likes: raid.likes, comments: raid.comments, retweets: raid.retweets }, false);
+            yield (0, telegramService_1.updateRaidMessage)(raid.message_id, raid.message_id, "Raid has been canceled.");
+            console.log(`Raid canceled for message ID: ${messageId}`);
+        }
+        catch (error) {
+            console.error("Error canceling raid:", error.message);
+        }
+    });
+}
+function verifyRaid(messageId) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const raid = yield (0, databaseService_1.fetchRaidByMessageId)(messageId);
+            if (!raid) {
+                console.error(`No active raid found for message ID: ${messageId}`);
+                return;
+            }
+            if (raid.raid_completed) {
+                console.log(`Raid for message ID ${messageId} is already completed.`);
+                yield (0, telegramService_1.updateRaidMessage)(raid.message_id, raid.message_id, "Raid is already completed.");
+                return;
+            }
+            const metrics = yield (0, twitterService_1.fetchMetrics)(raid.link);
+            yield (0, telegramService_1.updateRaidMessage)(raid.message_id, raid.message_id, `Raid status update: ${metrics.likes} likes, ${metrics.comments} comments, ${metrics.retweets} retweets`);
+            console.log(`Raid status verified for message ID: ${messageId}`);
+        }
+        catch (error) {
+            console.error("Error verifying raid:", error.message);
+        }
     });
 }
