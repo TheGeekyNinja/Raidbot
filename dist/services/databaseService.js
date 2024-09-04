@@ -9,6 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.saveGroupSubscription = saveGroupSubscription;
 exports.saveHandle = saveHandle;
 exports.createRaid = createRaid;
 exports.updateRaidMetrics = updateRaidMetrics;
@@ -16,6 +17,28 @@ exports.fetchRaidByMessageId = fetchRaidByMessageId;
 const supabase_js_1 = require("@supabase/supabase-js");
 const config_1 = require("../config");
 const supabase = (0, supabase_js_1.createClient)(config_1.SUPABASE_URL, config_1.SUPABASE_KEY);
+/**
+ * Saves the group subscription information to the group_subscriptions table.
+ * @param groupId The ID of the group.
+ * @param groupName The name of the group.
+ */
+function saveGroupSubscription(groupId, groupName) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const { data, error } = yield supabase
+                .from("groupsubscriptions")
+                .insert([{ group_id: groupId, group_name: groupName }]);
+            if (error) {
+                throw new Error(`Failed to save group subscription: ${error.message}`);
+            }
+            return data;
+        }
+        catch (err) {
+            console.error("Error saving group subscription:", err);
+            throw err;
+        }
+    });
+}
 /**
  * Saves the Twitter handle and Telegram username to the handles table.
  * @param twitterHandle The Twitter handle extracted from the raid link.

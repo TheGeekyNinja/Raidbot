@@ -16,6 +16,28 @@ export interface Raid {
 }
 
 /**
+ * Saves the group subscription information to the group_subscriptions table.
+ * @param groupId The ID of the group.
+ * @param groupName The name of the group.
+ */
+export async function saveGroupSubscription(groupId: number, groupName: string) {
+  try {
+    const { data, error } = await supabase
+      .from("groupsubscriptions")
+      .insert([{ group_id: groupId, group_name: groupName }]);
+
+    if (error) {
+      throw new Error(`Failed to save group subscription: ${error.message}`);
+    }
+
+    return data;
+  } catch (err) {
+    console.error("Error saving group subscription:", err);
+    throw err;
+  }
+}
+
+/**
  * Saves the Twitter handle and Telegram username to the handles table.
  * @param twitterHandle The Twitter handle extracted from the raid link.
  * @param telegramUsername The Telegram username or name of the user who initiated the raid.

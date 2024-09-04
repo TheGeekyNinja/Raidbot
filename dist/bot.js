@@ -14,20 +14,46 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const telegramService_1 = __importDefault(require("./services/telegramService"));
 const raidController_1 = require("./controllers/raidController");
-const databaseService_1 = require("./services/databaseService"); // New import to save handles
+const databaseService_1 = require("./services/databaseService"); // Import function to save group subscriptions
+let botId;
+// Fetch the bot's details when it starts to get its ID
+telegramService_1.default.getMe().then((me) => {
+    botId = me.id;
+    console.log(`Bot started. ID: ${botId}`);
+}).catch((error) => {
+    console.error("Failed to get bot information:", error);
+});
 process.on("unhandledRejection", (reason, promise) => {
     console.error("Unhandled Rejection at:", promise, "reason:", reason);
 });
+// Event listener for when the bot is added to a group
+telegramService_1.default.on('new_chat_members', (msg) => __awaiter(void 0, void 0, void 0, function* () {
+    const newMembers = msg.new_chat_members;
+    const chat = msg.chat;
+    if (newMembers && botId) {
+        for (const member of newMembers) {
+            if (member.id === botId) {
+                // The bot has been added to the group
+                const groupId = chat.id;
+                const groupName = chat.title || "Unnamed Group";
+                try {
+                    yield (0, databaseService_1.saveGroupSubscription)(groupId, groupName);
+                    console.log(`Bot added to group ${groupName} (${groupId}). Subscription saved.`);
+                }
+                catch (error) {
+                    console.error('Failed to save group subscription:', error.message);
+                }
+            }
+        }
+    }
+}));
 telegramService_1.default.onText(/\/startraid (\S+)(?: (\d+))?(?: (\d+))?(?: (\d+))?/, (msg, match) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b, _c;
     const chatId = msg.chat.id;
     const tweetUrl = match[1];
-    // Extract the Twitter handle from the tweet URL
     const twitterHandleMatch = tweetUrl.match(/https?:\/\/(?:www\.)?x\.com\/([^\/]+)\/status\/\d+/i);
     const twitterHandle = twitterHandleMatch ? twitterHandleMatch[1] : null;
-    // Get the Telegram user's username or name
     const telegramUsername = ((_a = msg.from) === null || _a === void 0 ? void 0 : _a.username) || `${((_b = msg.from) === null || _b === void 0 ? void 0 : _b.first_name) || ''} ${((_c = msg.from) === null || _c === void 0 ? void 0 : _c.last_name) || ''}`.trim();
-    // Save the handle information to the database
     if (twitterHandle && telegramUsername) {
         try {
             yield (0, databaseService_1.saveHandle)(twitterHandle, telegramUsername);
