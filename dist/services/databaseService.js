@@ -9,12 +9,35 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.saveHandle = saveHandle;
 exports.createRaid = createRaid;
 exports.updateRaidMetrics = updateRaidMetrics;
 exports.fetchRaidByMessageId = fetchRaidByMessageId;
 const supabase_js_1 = require("@supabase/supabase-js");
 const config_1 = require("../config");
 const supabase = (0, supabase_js_1.createClient)(config_1.SUPABASE_URL, config_1.SUPABASE_KEY);
+/**
+ * Saves the Twitter handle and Telegram username to the handles table.
+ * @param twitterHandle The Twitter handle extracted from the raid link.
+ * @param telegramUsername The Telegram username or name of the user who initiated the raid.
+ */
+function saveHandle(twitterHandle, telegramUsername) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const { data, error } = yield supabase
+                .from("handles")
+                .insert([{ twitter_handle: twitterHandle, telegram_username: telegramUsername }]);
+            if (error) {
+                throw new Error(`Failed to save handle: ${error.message}`);
+            }
+            return data;
+        }
+        catch (err) {
+            console.error("Error saving handle:", err);
+            throw err;
+        }
+    });
+}
 function createRaid(raid) {
     return __awaiter(this, void 0, void 0, function* () {
         try {

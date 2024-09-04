@@ -14,12 +14,32 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const telegramService_1 = __importDefault(require("./services/telegramService"));
 const raidController_1 = require("./controllers/raidController");
+const databaseService_1 = require("./services/databaseService"); // New import to save handles
 process.on("unhandledRejection", (reason, promise) => {
     console.error("Unhandled Rejection at:", promise, "reason:", reason);
 });
 telegramService_1.default.onText(/\/startraid (\S+)(?: (\d+))?(?: (\d+))?(?: (\d+))?/, (msg, match) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b, _c;
     const chatId = msg.chat.id;
     const tweetUrl = match[1];
+    // Extract the Twitter handle from the tweet URL
+    const twitterHandleMatch = tweetUrl.match(/https?:\/\/(?:www\.)?x\.com\/([^\/]+)\/status\/\d+/i);
+    const twitterHandle = twitterHandleMatch ? twitterHandleMatch[1] : null;
+    // Get the Telegram user's username or name
+    const telegramUsername = ((_a = msg.from) === null || _a === void 0 ? void 0 : _a.username) || `${((_b = msg.from) === null || _b === void 0 ? void 0 : _b.first_name) || ''} ${((_c = msg.from) === null || _c === void 0 ? void 0 : _c.last_name) || ''}`.trim();
+    // Save the handle information to the database
+    if (twitterHandle && telegramUsername) {
+        try {
+            yield (0, databaseService_1.saveHandle)(twitterHandle, telegramUsername);
+            console.log(`Saved handle: Twitter - ${twitterHandle}, Telegram - ${telegramUsername}`);
+        }
+        catch (error) {
+            console.error('Failed to save handle:', error.message);
+        }
+    }
+    else {
+        console.error('Could not extract Twitter handle or Telegram username.');
+    }
     console.log("Received /startraid command with parameters:", match);
     try {
         const likeGoal = match[2] ? parseInt(match[2], 10) : 100;

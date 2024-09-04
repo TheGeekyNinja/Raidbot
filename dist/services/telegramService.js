@@ -20,7 +20,6 @@ const node_telegram_bot_api_1 = __importDefault(require("node-telegram-bot-api")
 const config_1 = require("../config");
 const bot = new node_telegram_bot_api_1.default(config_1.TELEGRAM_TOKEN, { polling: true });
 let botId;
-// Get bot details to fetch its ID
 bot
     .getMe()
     .then((me) => {
@@ -30,17 +29,12 @@ bot
     .catch((error) => {
     console.error("Failed to get bot information:", error);
 });
-/**
- * Handles the event when the bot is added to a group.
- */
 bot.on('new_chat_members', (msg) => __awaiter(void 0, void 0, void 0, function* () {
     const newMembers = msg.new_chat_members;
-    // Ensure newMembers is defined and is an array before proceeding
     if (!newMembers || !botId)
         return;
     for (const member of newMembers) {
         if (member.id === botId) {
-            // The bot has been added to the group
             const chatId = msg.chat.id;
             const welcomeMessage = `Hello! Thanks for adding me to this group. I'm here to help manage raids. Use /startraid to begin!`;
             try {

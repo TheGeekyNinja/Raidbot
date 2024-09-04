@@ -15,6 +15,28 @@ export interface Raid {
   raid_completed: boolean;
 }
 
+/**
+ * Saves the Twitter handle and Telegram username to the handles table.
+ * @param twitterHandle The Twitter handle extracted from the raid link.
+ * @param telegramUsername The Telegram username or name of the user who initiated the raid.
+ */
+export async function saveHandle(twitterHandle: string, telegramUsername: string) {
+  try {
+    const { data, error } = await supabase
+      .from("handles")
+      .insert([{ twitter_handle: twitterHandle, telegram_username: telegramUsername }]);
+
+    if (error) {
+      throw new Error(`Failed to save handle: ${error.message}`);
+    }
+
+    return data;
+  } catch (err) {
+    console.error("Error saving handle:", err);
+    throw err;
+  }
+}
+
 export async function createRaid(
   raid: Omit<Raid, "id" | "last_updated" | "raid_completed">
 ): Promise<Raid[]> {

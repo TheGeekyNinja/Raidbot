@@ -4,6 +4,7 @@ import {
   cancelRaid,
   verifyRaid,
 } from "./controllers/raidController";
+import { saveHandle } from "./services/databaseService"; // New import to save handles
 
 process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);
@@ -14,6 +15,22 @@ bot.onText(
   async (msg, match) => {
     const chatId = msg.chat.id;
     const tweetUrl = match![1];
+
+    const twitterHandleMatch = tweetUrl.match(/https?:\/\/(?:www\.)?x\.com\/([^\/]+)\/status\/\d+/i);
+    const twitterHandle = twitterHandleMatch ? twitterHandleMatch[1] : null;
+
+    const telegramUsername = msg.from?.username || `${msg.from?.first_name || ''} ${msg.from?.last_name || ''}`.trim();
+
+    if (twitterHandle && telegramUsername) {
+      try {
+        await saveHandle(twitterHandle, telegramUsername);
+        console.log(`Saved handle: Twitter - ${twitterHandle}, Telegram - ${telegramUsername}`);
+      } catch (error: any) {
+        console.error('Failed to save handle:', error.message);
+      }
+    } else {
+      console.error('Could not extract Twitter handle or Telegram username.');
+    }
 
     console.log("Received /startraid command with parameters:", match);
 
