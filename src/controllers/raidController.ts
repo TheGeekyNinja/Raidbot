@@ -12,19 +12,15 @@ import {
 } from "../services/databaseService";
 import { setRaidInterval, clearRaidInterval } from "./intervalStorage";
 
-export async function startRaid(
-  chatId: number,
-  tweetUrl: string,
-  likeGoal: number,
-  commentGoal: number,
-  retweetGoal: number
-) {
+const messageContentStore: Record<number, string> = {};
+export async function startRaid(chatId: number, tweetUrl: string, likeGoal: number, commentGoal: number, retweetGoal: number) {
   await lockChat(chatId);
 
-  const messageId = await sendRaidMessage(
-    chatId,
-    `Raid started on tweet ${tweetUrl}`
-  );
+
+  const initialMessageText = `Raid started on tweet ${tweetUrl}`;
+  const messageId = await sendRaidMessage(chatId, initialMessageText);
+  
+  messageContentStore[messageId] = initialMessageText;
 
   const raid = await createRaid({
     link: tweetUrl,
@@ -45,50 +41,34 @@ export async function startRaid(
   const interval = setInterval(async () => {
     try {
       const metrics = await fetchMetrics(tweetUrl);
-      const raidCompleted =
-        metrics.likes >= likeGoal &&
-        metrics.comments >= commentGoal &&
-        metrics.retweets >= retweetGoal;
+      const raidCompleted = metrics.likes >= likeGoal && metrics.comments >= commentGoal && metrics.retweets >= retweetGoal;
 
-      await updateRaidMetrics(raidId, metrics, raidCompleted);
 
-      await updateRaidMessage(
-        chatId,
-        messageId,
-        `Raid update: ${metrics.likes} likes, ${metrics.comments} comments, ${metrics.retweets} retweets`
-      );
+      const newText = `Raid update: ${metrics.likes} likes, ${metrics.comments} comments, ${metrics.retweets} retweets`;
+
+
+      await updateRaidMessage(chatId, messageId, newText);
 
       if (raidCompleted) {
         clearInterval(interval);
         clearRaidInterval(messageId);
         await unlockChat(chatId);
-        await updateRaidMessage(
-          chatId,
-          messageId,
-          `Raid complete! ${metrics.likes} likes, ${metrics.comments} comments, ${metrics.retweets} retweets`
-        );
+        await updateRaidMessage(chatId, messageId, `Raid complete! ${metrics.likes} likes, ${metrics.comments} comments, ${metrics.retweets} retweets`);
       }
     } catch (error: any) {
-      if (error.response?.status === 429) {
-        console.error("Rate limit exceeded. Retrying after a delay...");
-      } else {
-        console.error("Error updating raid metrics:", error.message);
-        clearInterval(interval);
-        clearRaidInterval(messageId);
-        await unlockChat(chatId);
-        await updateRaidMessage(
-          chatId,
-          messageId,
-          `Raid failed due to error: ${error.message}`
-        );
-      }
+      console.error("Error updating raid metrics:", error.message);
+      clearInterval(interval);
+      clearRaidInterval(messageId);
+      await unlockChat(chatId);
+      await updateRaidMessage(chatId, messageId, `Raid failed due to error: ${error.message}`);
     }
-  }, 30000);
+  }, 30000); 
 
   setRaidInterval(messageId, interval);
-
   return messageId;
 }
+
+
 
 export async function cancelRaid(messageId: number) {
   try {

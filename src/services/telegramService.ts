@@ -105,25 +105,31 @@ export async function sendRaidMessage(
   }
 }
 
+const messageContentStore: Record<number, string> = {};
+
 /**
  * Updates an existing raid-related message in a chat.
+ * Tracks and skips updates if the content hasn't changed.
  * @param chatId The ID of the chat containing the message.
  * @param messageId The ID of the message to update.
- * @param text The new text content for the message.
+ * @param newText The new text content for the message.
  */
-export async function updateRaidMessage(
-  chatId: number,
-  messageId: number,
-  text: string
-) {
+export async function updateRaidMessage(chatId: number, messageId: number, newText: string) {
   try {
-    await bot.editMessageText(text, { chat_id: chatId, message_id: messageId });
-    console.log(`Raid message ${messageId} updated in chat ${chatId}.`);
+
+    const lastMessageText = messageContentStore[messageId];
+
+    if (lastMessageText !== newText) {
+
+      await bot.editMessageText(newText, { chat_id: chatId, message_id: messageId });
+      console.log(`Raid message ${messageId} updated in chat ${chatId}.`);
+
+      messageContentStore[messageId] = newText;
+    } else {
+      console.log(`Raid message ${messageId} in chat ${chatId} is the same, skipping update.`);
+    }
   } catch (error: any) {
-    console.error(
-      `Failed to update raid message ${messageId} in chat ${chatId}:`,
-      error.message
-    );
+    console.error(`Failed to update raid message ${messageId} in chat ${chatId}:`, error.message);
     throw error;
   }
 }

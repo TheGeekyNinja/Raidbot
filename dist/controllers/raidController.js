@@ -16,10 +16,15 @@ const telegramService_1 = require("../services/telegramService");
 const twitterService_1 = require("../services/twitterService");
 const databaseService_1 = require("../services/databaseService");
 const intervalStorage_1 = require("./intervalStorage");
+const messageContentStore = {};
 function startRaid(chatId, tweetUrl, likeGoal, commentGoal, retweetGoal) {
     return __awaiter(this, void 0, void 0, function* () {
         yield (0, telegramService_1.lockChat)(chatId);
-        const messageId = yield (0, telegramService_1.sendRaidMessage)(chatId, `Raid started on tweet ${tweetUrl}`);
+        // Send the initial raid message and track it
+        const initialMessageText = `Raid started on tweet ${tweetUrl}`;
+        const messageId = yield (0, telegramService_1.sendRaidMessage)(chatId, initialMessageText);
+        // Store the initial message content
+        messageContentStore[messageId] = initialMessageText;
         const raid = yield (0, databaseService_1.createRaid)({
             link: tweetUrl,
             message_id: messageId,
@@ -34,14 +39,13 @@ function startRaid(chatId, tweetUrl, likeGoal, commentGoal, retweetGoal) {
         }
         const raidId = raid[0].id;
         const interval = setInterval(() => __awaiter(this, void 0, void 0, function* () {
-            var _a;
             try {
                 const metrics = yield (0, twitterService_1.fetchMetrics)(tweetUrl);
-                const raidCompleted = metrics.likes >= likeGoal &&
-                    metrics.comments >= commentGoal &&
-                    metrics.retweets >= retweetGoal;
-                yield (0, databaseService_1.updateRaidMetrics)(raidId, metrics, raidCompleted);
-                yield (0, telegramService_1.updateRaidMessage)(chatId, messageId, `Raid update: ${metrics.likes} likes, ${metrics.comments} comments, ${metrics.retweets} retweets`);
+                const raidCompleted = metrics.likes >= likeGoal && metrics.comments >= commentGoal && metrics.retweets >= retweetGoal;
+                // Prepare the new message text based on updated metrics
+                const newText = `Raid update: ${metrics.likes} likes, ${metrics.comments} comments, ${metrics.retweets} retweets`;
+                // Update the message only if the content is different
+                yield (0, telegramService_1.updateRaidMessage)(chatId, messageId, newText);
                 if (raidCompleted) {
                     clearInterval(interval);
                     (0, intervalStorage_1.clearRaidInterval)(messageId);
@@ -50,18 +54,13 @@ function startRaid(chatId, tweetUrl, likeGoal, commentGoal, retweetGoal) {
                 }
             }
             catch (error) {
-                if (((_a = error.response) === null || _a === void 0 ? void 0 : _a.status) === 429) {
-                    console.error("Rate limit exceeded. Retrying after a delay...");
-                }
-                else {
-                    console.error("Error updating raid metrics:", error.message);
-                    clearInterval(interval);
-                    (0, intervalStorage_1.clearRaidInterval)(messageId);
-                    yield (0, telegramService_1.unlockChat)(chatId);
-                    yield (0, telegramService_1.updateRaidMessage)(chatId, messageId, `Raid failed due to error: ${error.message}`);
-                }
+                console.error("Error updating raid metrics:", error.message);
+                clearInterval(interval);
+                (0, intervalStorage_1.clearRaidInterval)(messageId);
+                yield (0, telegramService_1.unlockChat)(chatId);
+                yield (0, telegramService_1.updateRaidMessage)(chatId, messageId, `Raid failed due to error: ${error.message}`);
             }
-        }), 30000);
+        }), 30000); // Adjust interval time as necessary
         (0, intervalStorage_1.setRaidInterval)(messageId, interval);
         return messageId;
     });

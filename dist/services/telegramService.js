@@ -116,17 +116,30 @@ function sendRaidMessage(chatId, text) {
         }
     });
 }
+// In-memory store to keep track of message content by message ID
+const messageContentStore = {};
 /**
  * Updates an existing raid-related message in a chat.
+ * Tracks and skips updates if the content hasn't changed.
  * @param chatId The ID of the chat containing the message.
  * @param messageId The ID of the message to update.
- * @param text The new text content for the message.
+ * @param newText The new text content for the message.
  */
-function updateRaidMessage(chatId, messageId, text) {
+function updateRaidMessage(chatId, messageId, newText) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            yield bot.editMessageText(text, { chat_id: chatId, message_id: messageId });
-            console.log(`Raid message ${messageId} updated in chat ${chatId}.`);
+            // Check if the new text is different from the last saved text
+            const lastMessageText = messageContentStore[messageId];
+            if (lastMessageText !== newText) {
+                // Update the message only if the content has changed
+                yield bot.editMessageText(newText, { chat_id: chatId, message_id: messageId });
+                console.log(`Raid message ${messageId} updated in chat ${chatId}.`);
+                // Store the new message content
+                messageContentStore[messageId] = newText;
+            }
+            else {
+                console.log(`Raid message ${messageId} in chat ${chatId} is the same, skipping update.`);
+            }
         }
         catch (error) {
             console.error(`Failed to update raid message ${messageId} in chat ${chatId}:`, error.message);

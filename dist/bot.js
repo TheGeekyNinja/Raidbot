@@ -14,9 +14,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const telegramService_1 = __importDefault(require("./services/telegramService"));
 const raidController_1 = require("./controllers/raidController");
-const databaseService_1 = require("./services/databaseService"); // Import function to save group subscriptions
+const databaseService_1 = require("./services/databaseService");
 let botId;
-// Fetch the bot's details when it starts to get its ID
 telegramService_1.default.getMe().then((me) => {
     botId = me.id;
     console.log(`Bot started. ID: ${botId}`);
@@ -26,14 +25,12 @@ telegramService_1.default.getMe().then((me) => {
 process.on("unhandledRejection", (reason, promise) => {
     console.error("Unhandled Rejection at:", promise, "reason:", reason);
 });
-// Event listener for when the bot is added to a group
 telegramService_1.default.on('new_chat_members', (msg) => __awaiter(void 0, void 0, void 0, function* () {
     const newMembers = msg.new_chat_members;
     const chat = msg.chat;
     if (newMembers && botId) {
         for (const member of newMembers) {
             if (member.id === botId) {
-                // The bot has been added to the group
                 const groupId = chat.id;
                 const groupName = chat.title || "Unnamed Group";
                 try {

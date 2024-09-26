@@ -4,11 +4,10 @@ import {
   cancelRaid,
   verifyRaid,
 } from "./controllers/raidController";
-import { saveHandle, saveGroupSubscription } from "./services/databaseService"; // Import function to save group subscriptions
+import { saveHandle, saveGroupSubscription } from "./services/databaseService";
 
 let botId: number | undefined;
 
-// Fetch the bot's details when it starts to get its ID
 bot.getMe().then((me) => {
   botId = me.id;
   console.log(`Bot started. ID: ${botId}`);
@@ -20,7 +19,6 @@ process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);
 });
 
-// Event listener for when the bot is added to a group
 bot.on('new_chat_members', async (msg) => {
   const newMembers = msg.new_chat_members;
   const chat = msg.chat;
@@ -28,7 +26,7 @@ bot.on('new_chat_members', async (msg) => {
   if (newMembers && botId) {
     for (const member of newMembers) {
       if (member.id === botId) {
-        // The bot has been added to the group
+
         const groupId = chat.id;
         const groupName = chat.title || "Unnamed Group";
 
