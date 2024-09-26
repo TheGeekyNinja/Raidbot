@@ -30,7 +30,7 @@
 2. Install dependencies:
 
     ```bash
-    npm install
+    yarn install
     ```
 
 3. Create a `.env` file in the project root and add your credentials:
